@@ -12,6 +12,7 @@ import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,11 @@ const App = () => (
             <Route path="/settings" element={
               <AuthGuard>
                 <Settings />
+              </AuthGuard>
+            } />
+            <Route path="/admin" element={
+              <AuthGuard>
+                <Admin />
               </AuthGuard>
             } />
             
