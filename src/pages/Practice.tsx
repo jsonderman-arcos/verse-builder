@@ -36,9 +36,9 @@ const exerciseTypes = [
   {
     id: "fill-blanks",
     name: "Fill in the Blanks",
-    description: "Complete the verse with missing words",
+    description: "Complete the verse with missing words (difficulty scales with day)",
     icon: Brain,
-    difficulty: "Hard",
+    difficulty: "Progressive",
     color: "bg-warning"
   },
   {
@@ -101,7 +101,10 @@ const Practice = () => {
               </div>
 
               {selectedExercise === 'typing' && <TypingExercise {...commonProps} showHints={true} />}
-              {selectedExercise === 'fill-blanks' && <FillBlanksExercise {...commonProps} />}
+              {selectedExercise === 'fill-blanks' && <FillBlanksExercise {...commonProps} day={(() => {
+                const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+                return today === 0 ? 7 : today; // Convert Sunday to 7, keep others as is
+              })()} />}
               {selectedExercise === 'reference' && <ReferenceQuiz {...commonProps} />}
               {selectedExercise === 'reflection' && <ReflectionExercise {...commonProps} />}
             </div>

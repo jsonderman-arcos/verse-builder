@@ -8,21 +8,39 @@ import { Brain, RotateCcw, Lightbulb } from "lucide-react";
 interface FillBlanksExerciseProps {
   verse: string;
   reference: string;
+  day?: number; // 1-7 for progressive difficulty
   onComplete?: (timeSpent: number, accuracy: number) => void;
 }
 
-export const FillBlanksExercise = ({ verse, reference, onComplete }: FillBlanksExerciseProps) => {
+export const FillBlanksExercise = ({ verse, reference, day = 4, onComplete }: FillBlanksExerciseProps) => {
   const [startTime] = useState(Date.now());
   const [userAnswers, setUserAnswers] = useState<{ [key: number]: string }>({});
   const [isComplete, setIsComplete] = useState(false);
-  const [showHints, setShowHints] = useState(false);
 
-  // Create blanks for every 4th-6th word (roughly)
+  // Calculate difficulty percentage based on day (10% to 60%)
+  const difficultyPercentage = Math.min(60, 10 + (day - 1) * 8.33);
+  
   const words = verse.split(' ');
-  const blankIndices = words
-    .map((_, index) => index)
-    .filter((index) => (index + 1) % 5 === 0 || (index + 1) % 6 === 0)
-    .slice(0, Math.min(8, Math.floor(words.length / 4))); // Max 8 blanks
+  
+  // Smart word selection: prioritize important words
+  const getWordImportance = (word: string, index: number) => {
+    const cleanWord = word.toLowerCase().replace(/[^\w]/g, '');
+    // Skip very short words and common articles/prepositions
+    if (cleanWord.length <= 2) return 0;
+    if (['the', 'and', 'or', 'but', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by'].includes(cleanWord)) return 1;
+    // Prioritize longer, more meaningful words
+    return cleanWord.length + (index % 3 === 0 ? 1 : 0); // Add slight preference for even distribution
+  };
+
+  // Create blanks based on difficulty percentage
+  const targetBlanks = Math.max(1, Math.floor((words.length * difficultyPercentage) / 100));
+  const wordImportances = words.map((word, index) => ({ word, index, importance: getWordImportance(word, index) }));
+  wordImportances.sort((a, b) => b.importance - a.importance);
+  
+  const blankIndices = wordImportances
+    .slice(0, targetBlanks)
+    .map(item => item.index)
+    .sort((a, b) => a - b); // Sort back to original order
 
   const blankedVerse = words.map((word, index) => {
     if (blankIndices.includes(index)) {
@@ -62,12 +80,12 @@ export const FillBlanksExercise = ({ verse, reference, onComplete }: FillBlanksE
   const reset = () => {
     setUserAnswers({});
     setIsComplete(false);
-    setShowHints(false);
   };
 
-  const getHint = (index: number) => {
-    if (!showHints) return '';
-    return words[index].charAt(0) + '...';
+  const getFirstLetterHint = (index: number) => {
+    const word = words[index];
+    const firstChar = word.charAt(0).toUpperCase();
+    return firstChar + '____';
   };
 
   return (
@@ -79,14 +97,8 @@ export const FillBlanksExercise = ({ verse, reference, onComplete }: FillBlanksE
             <CardTitle className="text-xl">Fill in the Blanks</CardTitle>
           </div>
           <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowHints(!showHints)}
-            >
-              <Lightbulb className="w-4 h-4 mr-1" />
-              {showHints ? 'Hide' : 'Show'} Hints
-            </Button>
+            <Badge variant="outline">Day {day}/7</Badge>
+            <Badge variant="secondary">{Math.round(difficultyPercentage)}% difficulty</Badge>
             <Button variant="outline" size="sm" onClick={reset}>
               <RotateCcw className="w-4 h-4 mr-1" />
               Reset
@@ -111,8 +123,8 @@ export const FillBlanksExercise = ({ verse, reference, onComplete }: FillBlanksE
                   <Input
                     value={userAnswer}
                     onChange={(e) => handleInputChange(index, e.target.value)}
-                    placeholder={showHints ? getHint(index) : '____'}
-                    className={`inline w-20 h-8 text-center text-sm mx-1 ${
+                    placeholder={getFirstLetterHint(index)}
+                    className={`inline w-24 h-8 text-center text-sm mx-1 ${
                       isCorrect ? 'border-success bg-success/10' :
                       userAnswer ? 'border-destructive bg-destructive/10' :
                       'border-muted-foreground'
