@@ -14,7 +14,207 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      user_exercise_completions: {
+        Row: {
+          accuracy: number
+          completed_at: string | null
+          created_at: string | null
+          exercise_data: Json | null
+          exercise_round: number | null
+          exercise_type: string
+          id: string
+          time_spent: number
+          user_id: string
+          verse_progress_id: string
+        }
+        Insert: {
+          accuracy: number
+          completed_at?: string | null
+          created_at?: string | null
+          exercise_data?: Json | null
+          exercise_round?: number | null
+          exercise_type: string
+          id?: string
+          time_spent: number
+          user_id: string
+          verse_progress_id: string
+        }
+        Update: {
+          accuracy?: number
+          completed_at?: string | null
+          created_at?: string | null
+          exercise_data?: Json | null
+          exercise_round?: number | null
+          exercise_type?: string
+          id?: string
+          time_spent?: number
+          user_id?: string
+          verse_progress_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_exercise_completions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_exercise_completions_verse_progress_id_fkey"
+            columns: ["verse_progress_id"]
+            isOneToOne: false
+            referencedRelation: "user_verses_progress"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          display_name: string | null
+          email: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_settings: {
+        Row: {
+          bible_order: string | null
+          created_at: string | null
+          daily_reminder_enabled: boolean | null
+          daily_reminder_time: string | null
+          id: string
+          notification_preferences: Json | null
+          preferred_translation: string | null
+          privacy_settings: Json | null
+          theme_preference: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          bible_order?: string | null
+          created_at?: string | null
+          daily_reminder_enabled?: boolean | null
+          daily_reminder_time?: string | null
+          id?: string
+          notification_preferences?: Json | null
+          preferred_translation?: string | null
+          privacy_settings?: Json | null
+          theme_preference?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          bible_order?: string | null
+          created_at?: string | null
+          daily_reminder_enabled?: boolean | null
+          daily_reminder_time?: string | null
+          id?: string
+          notification_preferences?: Json | null
+          preferred_translation?: string | null
+          privacy_settings?: Json | null
+          theme_preference?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_verses_progress: {
+        Row: {
+          accuracy_average: number | null
+          completion_date: string | null
+          created_at: string | null
+          current_week_day: number | null
+          id: string
+          is_completed: boolean | null
+          time_spent_total: number | null
+          total_exercises_completed: number | null
+          translation: string | null
+          updated_at: string | null
+          user_id: string
+          verse_reference: string
+          verse_text: string
+          week_start_date: string | null
+        }
+        Insert: {
+          accuracy_average?: number | null
+          completion_date?: string | null
+          created_at?: string | null
+          current_week_day?: number | null
+          id?: string
+          is_completed?: boolean | null
+          time_spent_total?: number | null
+          total_exercises_completed?: number | null
+          translation?: string | null
+          updated_at?: string | null
+          user_id: string
+          verse_reference: string
+          verse_text: string
+          week_start_date?: string | null
+        }
+        Update: {
+          accuracy_average?: number | null
+          completion_date?: string | null
+          created_at?: string | null
+          current_week_day?: number | null
+          id?: string
+          is_completed?: boolean | null
+          time_spent_total?: number | null
+          total_exercises_completed?: number | null
+          translation?: string | null
+          updated_at?: string | null
+          user_id?: string
+          verse_reference?: string
+          verse_text?: string
+          week_start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_verses_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

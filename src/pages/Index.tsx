@@ -1,12 +1,18 @@
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { HeroSection } from "@/components/ui/hero-section";
 import { Navigation } from "@/components/ui/navigation";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleGetStarted = () => {
-    navigate("/verses");
+    if (user) {
+      navigate("/verses");
+    } else {
+      navigate("/signup");
+    }
   };
 
   return (

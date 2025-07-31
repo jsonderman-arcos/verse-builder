@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { ArrowRight, Book, Heart, Target } from "lucide-react";
 
 interface HeroSectionProps {
@@ -6,6 +7,8 @@ interface HeroSectionProps {
 }
 
 export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
+  const { user } = useAuth();
+
   return (
     <section className="relative min-h-screen flex items-center justify-center bg-gradient-peaceful overflow-hidden">
       {/* Background decoration */}
@@ -69,7 +72,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               size="lg"
               className="bg-gradient-divine hover:shadow-glow transition-all duration-300 text-lg px-8 py-4 h-auto"
             >
-              Start Memorizing Today
+              {user ? "Continue Your Journey" : "Start Memorizing Today"}
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
           </div>
