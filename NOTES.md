@@ -30,6 +30,10 @@
 3. Continue with verse memorization features
 4. Add progress tracking and analytics
 5. Implement user settings and preferences
+6. Move Sign In Sign Up under avatar icon
+7. Test and fix speech to text
+8. add in TTS voice for read-aloud
+9. Add in different practice exercises and mix them up each da of the week
 
 ### Technical Architecture
 - **Frontend**: React + TypeScript + Vite
