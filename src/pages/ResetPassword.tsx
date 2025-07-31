@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,14 +18,34 @@ const ResetPassword = () => {
   const [validSession, setValidSession] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   useEffect(() => {
     const initializePasswordReset = async () => {
-      // First check if we have tokens in the URL
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
-      const type = searchParams.get('type');
+      // Check for tokens in both URL search params and hash fragments
+      let accessToken = searchParams.get('access_token');
+      let refreshToken = searchParams.get('refresh_token');
+      let type = searchParams.get('type');
+      let errorParam = searchParams.get('error');
+      let errorDescription = searchParams.get('error_description');
+      
+      // If not found in search params, check hash fragments
+      if (!accessToken && window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        accessToken = hashParams.get('access_token');
+        refreshToken = hashParams.get('refresh_token');
+        type = hashParams.get('type');
+        errorParam = hashParams.get('error');
+        errorDescription = hashParams.get('error_description');
+      }
+      
+      // Check for errors first
+      if (errorParam) {
+        const errorMessage = errorDescription 
+          ? decodeURIComponent(errorDescription.replace(/\+/g, ' '))
+          : 'An error occurred during password reset';
+        setError(`Reset failed: ${errorMessage}`);
+        return;
+      }
     
       if (accessToken && refreshToken && type === 'recovery') {
         try {
@@ -47,11 +66,8 @@ const ResetPassword = () => {
           }
         } catch (error) {
           console.error('Error during session setup:', error);
-          setError('An error occurred. Please try again.');
+          setError('Invalid or expired reset link. Please request a new password reset.');
         }
-      } else if (user) {
-        // User is already authenticated (maybe from a direct navigation)
-        setValidSession(true);
       } else {
         setError('Invalid reset link. Please request a new password reset.');
       }
