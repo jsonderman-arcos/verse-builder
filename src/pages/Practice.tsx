@@ -11,9 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Target, BookOpen, Brain, Heart, RotateCcw } from "lucide-react";
 
 const currentVerse = {
-  verse: "Trust in the LORD with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.",
-  reference: "Proverbs 3:5-6",
-  translation: "NIV"
+  verse: "For I know the plans I have for you, declares the LORD, plans for welfare and not for evil, to give you a future and a hope.",
+  reference: "Jeremiah 29:11",
+  translation: "ESV"
 };
 
 const exerciseTypes = [
@@ -131,7 +131,10 @@ const Practice = () => {
               </div>
               <div className="flex items-center space-x-4">
                 <Badge variant="secondary" className="flex items-center space-x-1">
-                  <span>Day 3 of 7</span>
+                  <span>Day {(() => {
+                    const today = new Date().getDay();
+                    return today === 0 ? 7 : today;
+                  })()} of 7</span>
                 </Badge>
                 <Button variant="outline" size="sm" onClick={resetProgress}>
                   <RotateCcw className="w-4 h-4 mr-1" />

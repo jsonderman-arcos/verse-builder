@@ -7,15 +7,37 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { CalendarDays, BookOpen, Clock, PlayCircle, CheckCircle2, Target } from "lucide-react";
 
+// Get current date information
+const getCurrentWeekInfo = () => {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const currentDay = dayOfWeek === 0 ? 7 : dayOfWeek; // Convert Sunday to 7
+  
+  // Get start of week (Monday)
+  const startOfWeek = new Date(today);
+  const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  startOfWeek.setDate(today.getDate() - daysToSubtract);
+  
+  const weekOf = startOfWeek.toLocaleDateString('en-US', { 
+    month: 'long', 
+    day: 'numeric', 
+    year: 'numeric' 
+  });
+  
+  return { currentDay, weekOf };
+};
+
+const { currentDay, weekOf } = getCurrentWeekInfo();
+
 const currentVerse = {
-  verse: "Trust in the LORD with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.",
-  reference: "Proverbs 3:5-6",
-  translation: "NIV",
-  contextBefore: "My son, do not forget my teaching, but keep my commands in your heart, for they will prolong your life many years and bring you peace and prosperity.",
-  contextAfter: "Do not be wise in your own eyes; fear the LORD and shun evil. This will bring health to your body and nourishment to your bones.",
-  background: "Written by King Solomon, this passage is part of his wisdom literature instructing his son (and all readers) to trust completely in God's guidance rather than relying solely on human wisdom.",
-  weekDay: 3,
-  weekOf: "November 25, 2024"
+  verse: "For I know the plans I have for you, declares the LORD, plans for welfare and not for evil, to give you a future and a hope.",
+  reference: "Jeremiah 29:11",
+  translation: "ESV",
+  contextBefore: "Thus says the LORD of hosts, the God of Israel, to all the exiles whom I have sent into exile from Jerusalem to Babylon: Build houses and live in them; plant gardens and eat their produce.",
+  contextAfter: "Then you will call upon me and come and pray to me, and I will hear you. You will seek me and find me, when you seek me with all your heart.",
+  background: "Written during the Babylonian exile, this verse is part of God's letter through Jeremiah to the Jewish exiles. Despite their difficult circumstances, God assures them of His good plans and promised future restoration.",
+  weekDay: currentDay,
+  weekOf: weekOf
 };
 
 const dailyExercises = {
