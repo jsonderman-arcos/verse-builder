@@ -16,6 +16,7 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [validSession, setValidSession] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -51,11 +52,15 @@ const ResetPassword = () => {
           ? decodeURIComponent(errorDescription.replace(/\+/g, ' '))
           : 'An error occurred during password reset';
         setError(`Reset failed: ${errorMessage}`);
+        setCheckingSession(false);
         return;
       }
     
       if (accessToken && refreshToken && type === 'recovery') {
         try {
+          // Add a small delay to handle potential clock skew
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
           // Set the session with the tokens from the URL
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
@@ -64,20 +69,30 @@ const ResetPassword = () => {
 
           if (error) {
             console.error('Error setting session:', error);
-            setError('Invalid or expired reset link. Please request a new password reset.');
+            // Handle clock skew errors more gracefully
+            if (error.message.includes('future') || error.message.includes('clock')) {
+              setError('There seems to be a timing issue. Please wait a moment and try refreshing the page, or request a new password reset link.');
+            } else {
+              setError('Invalid or expired reset link. Please request a new password reset.');
+            }
+            setCheckingSession(false);
             return;
           }
 
           if (data.session) {
             setValidSession(true);
+          } else {
+            setError('Unable to establish session. Please request a new password reset.');
           }
         } catch (error) {
           console.error('Error during session setup:', error);
-          setError('Invalid or expired reset link. Please request a new password reset.');
+          setError('There was an issue processing your reset link. Please request a new password reset.');
         }
       } else {
         setError('Invalid reset link. Please request a new password reset.');
       }
+      
+      setCheckingSession(false);
     };
 
     initializePasswordReset();
@@ -122,7 +137,7 @@ const ResetPassword = () => {
   };
 
   // Show loading while checking session validity
-  if (!validSession && !error) {
+  if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-peaceful p-4">
         <div className="w-full max-w-md space-y-6">
@@ -136,6 +151,9 @@ const ResetPassword = () => {
             <div className="mt-4">
               <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
             </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              This may take a moment...
+            </p>
           </div>
         </div>
       </div>
@@ -164,6 +182,13 @@ const ResetPassword = () => {
               <div className="text-center">
                 <Button onClick={() => navigate('/forgot-password')} className="w-full">
                   Request New Reset Link
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.reload()} 
+                  className="w-full"
+                >
+                  Try Again
                 </Button>
               </div>
             </CardContent>
