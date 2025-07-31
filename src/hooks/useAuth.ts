@@ -80,23 +80,40 @@ export const useAuthProvider = (): AuthContextType => {
   };
 
   useEffect(() => {
+    let mounted = true;
+    
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!mounted) return;
+      
+      if (error) {
+        console.error('Error getting session:', error);
+        setLoading(false);
+        return;
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         Promise.all([
           fetchProfile(session.user.id),
           fetchSettings(session.user.id)
-        ]).finally(() => setLoading(false));
+        ]).finally(() => {
+          if (mounted) setLoading(false);
+        });
       } else {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
+    }).catch((error) => {
+      console.error('Error in getSession:', error);
+      if (mounted) setLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -113,7 +130,10 @@ export const useAuthProvider = (): AuthContextType => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
