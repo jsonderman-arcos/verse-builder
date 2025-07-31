@@ -16,7 +16,7 @@ SELECT
   '{"manage_users": true, "view_analytics": true, "system_admin": true}'::jsonb,
   id -- Self-granted for first admin
 FROM auth.users 
-WHERE email = 'jason@blue148.com' -- REPLACE WITH ACTUAL EMAIL
+WHERE email = 'jason@sonderman.info' -- REPLACE WITH ACTUAL EMAIL
 AND NOT EXISTS (
   SELECT 1 FROM admin_users WHERE user_id = auth.users.id
 );
