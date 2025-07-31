@@ -48,9 +48,7 @@ const App = () => (
               </AuthGuard>
             } />
             <Route path="/reset-password" element={
-              <AuthGuard requireAuth={false}>
-                <ResetPassword />
-              </AuthGuard>
+              <ResetPassword />
             } />
             
             {/* Protected routes */}

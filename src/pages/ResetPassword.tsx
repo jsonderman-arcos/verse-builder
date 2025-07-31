@@ -21,6 +21,11 @@ const ResetPassword = () => {
 
   useEffect(() => {
     const initializePasswordReset = async () => {
+      console.log('Initializing password reset...');
+      console.log('Current URL:', window.location.href);
+      console.log('Hash:', window.location.hash);
+      console.log('Search:', window.location.search);
+      
       // Check for tokens in both URL search params and hash fragments
       let accessToken = searchParams.get('access_token');
       let refreshToken = searchParams.get('refresh_token');
@@ -37,6 +42,8 @@ const ResetPassword = () => {
         errorParam = hashParams.get('error');
         errorDescription = hashParams.get('error_description');
       }
+      
+      console.log('Extracted tokens:', { accessToken: !!accessToken, refreshToken: !!refreshToken, type, errorParam, errorDescription });
       
       // Check for errors first
       if (errorParam) {
