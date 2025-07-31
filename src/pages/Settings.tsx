@@ -5,16 +5,36 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Navigation } from "@/components/ui/navigation";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 type BibleOrder = "canonical" | "chronological" | "narrative" | "bookType";
 
 const Settings = () => {
-  const [selectedOrder, setSelectedOrder] = useState<BibleOrder>("canonical");
+  const [selectedOrder, setSelectedOrder] = useState<BibleOrder>(() => {
+    return (localStorage.getItem("bibleOrder") as BibleOrder) || "canonical";
+  });
+
+  const restartBible = () => {
+    // Clear all Bible progress from localStorage
+    const keysToRemove = ["bibleProgress", "completedExercises", "verseProgress", "weekProgress"];
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    toast.success("Bible progress restarted! Starting fresh from the beginning.");
+  };
 
   const handleSaveSettings = () => {
+    const previousOrder = localStorage.getItem("bibleOrder");
+    const hasOrderChanged = previousOrder && previousOrder !== selectedOrder;
+    
     // Store in localStorage for now - can be moved to Supabase later
     localStorage.setItem("bibleOrder", selectedOrder);
-    toast.success("Bible order preference saved!");
+    
+    if (hasOrderChanged) {
+      // Automatically restart when order changes
+      restartBible();
+      toast.success("Bible order changed! Progress restarted for new order.");
+    } else {
+      toast.success("Bible order preference saved!");
+    }
   };
 
   const orderOptions = [
@@ -91,6 +111,40 @@ const Settings = () => {
               >
                 Save Preferences
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-lg border-0 mt-6">
+            <CardHeader>
+              <CardTitle className="text-slate-800 dark:text-slate-100">
+                Reset Progress
+              </CardTitle>
+              <CardDescription className="text-slate-600 dark:text-slate-300">
+                Start fresh with your Bible memorization journey. This will clear all your progress and completed verses.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="w-full">
+                    Restart Bible
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure you want to restart?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete all your Bible memorization progress, including completed verses and exercise history.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={restartBible}>
+                      Yes, restart my progress
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardContent>
           </Card>
         </div>
