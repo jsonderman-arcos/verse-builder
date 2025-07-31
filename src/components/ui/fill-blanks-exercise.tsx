@@ -74,6 +74,14 @@ export const FillBlanksExercise = ({ verse, reference, day = 4, onComplete }: Fi
   }, [userAnswers]);
 
   const handleInputChange = (index: number, value: string) => {
+    // Ensure the first letter is always present
+    const originalWord = words[index];
+    const firstLetter = originalWord.charAt(0).toUpperCase();
+    
+    if (value.length === 0 || !value.startsWith(firstLetter)) {
+      value = firstLetter + value.replace(firstLetter, '');
+    }
+    
     setUserAnswers(prev => ({ ...prev, [index]: value }));
   };
 
