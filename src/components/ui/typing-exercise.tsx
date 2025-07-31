@@ -3,8 +3,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, RotateCcw, Lightbulb } from "lucide-react";
+import { CheckCircle, RotateCcw, Lightbulb, Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TypingExerciseProps {
   verse: string;
@@ -20,12 +21,39 @@ export const TypingExercise = ({
   onComplete 
 }: TypingExerciseProps) => {
   const [userInput, setUserInput] = useState("");
-  const [isComplete, setIsComplete] = useState(false);
+  const [currentRound, setCurrentRound] = useState(1);
+  const [isRoundComplete, setIsRoundComplete] = useState(false);
   const [showFirstLetters, setShowFirstLetters] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const words = verse.split(" ");
+  // Create masked verse based on current round
+  const getMaskedVerse = () => {
+    if (currentRound === 1) return verse; // Full verse for first round
+    
+    const words = verse.split(" ");
+    const maskPercentage = currentRound === 2 ? 0.3 : 0.6; // 30% for round 2, 60% for round 3
+    const wordsToMask = Math.floor(words.length * maskPercentage);
+    
+    // Select random words to mask, but keep first and last words
+    const indicesToMask = [];
+    const availableIndices = Array.from({length: words.length - 2}, (_, i) => i + 1);
+    
+    for (let i = 0; i < wordsToMask && availableIndices.length > 0; i++) {
+      const randomIndex = Math.floor(Math.random() * availableIndices.length);
+      indicesToMask.push(availableIndices.splice(randomIndex, 1)[0]);
+    }
+    
+    return words.map((word, index) => 
+      indicesToMask.includes(index) ? "____" : word
+    ).join(" ");
+  };
+
+  const displayVerse = getMaskedVerse();
+  const words = displayVerse.split(" ");
   const userWords = userInput.trim().split(/\s+/);
   const progress = userInput.length > 0 ? (userInput.length / verse.length) * 100 : 0;
 
@@ -36,15 +64,19 @@ export const TypingExercise = ({
   }, [userInput, startTime]);
 
   useEffect(() => {
-    if (userInput.trim().toLowerCase() === verse.toLowerCase() && !isComplete) {
-      setIsComplete(true);
-      if (startTime && onComplete) {
-        const timeSpent = Date.now() - startTime;
-        const accuracy = calculateAccuracy();
-        onComplete(timeSpent, accuracy);
+    if (userInput.trim().toLowerCase() === verse.toLowerCase() && !isRoundComplete) {
+      setIsRoundComplete(true);
+      
+      if (currentRound === 3) {
+        // All rounds complete
+        if (startTime && onComplete) {
+          const timeSpent = Date.now() - startTime;
+          const accuracy = calculateAccuracy();
+          onComplete(timeSpent, accuracy);
+        }
       }
     }
-  }, [userInput, verse, isComplete, startTime, onComplete]);
+  }, [userInput, verse, isRoundComplete, currentRound, startTime, onComplete]);
 
   const calculateAccuracy = () => {
     const targetWords = verse.toLowerCase().split(/\s+/);
@@ -61,7 +93,8 @@ export const TypingExercise = ({
   const getWordStatus = (wordIndex: number) => {
     if (wordIndex >= userWords.length) return "upcoming";
     
-    const targetWord = words[wordIndex]?.toLowerCase().replace(/[^\w]/g, "");
+    const targetWords = verse.split(" ");
+    const targetWord = targetWords[wordIndex]?.toLowerCase().replace(/[^\w]/g, "");
     const userWord = userWords[wordIndex]?.toLowerCase().replace(/[^\w]/g, "");
     
     if (userWord === targetWord) return "correct";
@@ -72,21 +105,25 @@ export const TypingExercise = ({
   const renderVerse = () => {
     return words.map((word, index) => {
       const status = getWordStatus(index);
-      const isCurrentWord = index === userWords.length - 1 && !isComplete;
+      const isCurrentWord = index === userWords.length - 1 && !isRoundComplete;
+      const isMasked = word === "____";
       
       return (
         <span
           key={index}
           className={cn(
             "transition-all duration-200 px-1 py-0.5 rounded",
-            status === "correct" && "bg-success/20 text-success-foreground",
-            status === "incorrect" && "bg-destructive/20 text-destructive-foreground",
-            status === "partial" && "bg-warning/20 text-warning-foreground",
-            status === "upcoming" && "text-muted-foreground",
+            !isMasked && status === "correct" && "bg-success/20 text-success-foreground",
+            !isMasked && status === "incorrect" && "bg-destructive/20 text-destructive-foreground",
+            !isMasked && status === "partial" && "bg-warning/20 text-warning-foreground",
+            !isMasked && status === "upcoming" && "text-muted-foreground",
+            isMasked && "bg-muted/40 text-muted-foreground font-mono",
             isCurrentWord && "ring-2 ring-primary/30 bg-primary/10"
           )}
         >
-          {showFirstLetters && status === "upcoming" ? (
+          {isMasked ? (
+            "____"
+          ) : showFirstLetters && status === "upcoming" ? (
             <>
               <span className="font-semibold text-primary">{word[0]}</span>
               <span className="text-muted-foreground">{"_".repeat(word.length - 1)}</span>
@@ -100,12 +137,92 @@ export const TypingExercise = ({
     });
   };
 
+  const nextRound = () => {
+    setCurrentRound(prev => prev + 1);
+    setUserInput("");
+    setIsRoundComplete(false);
+    textareaRef.current?.focus();
+  };
+
   const reset = () => {
     setUserInput("");
-    setIsComplete(false);
+    setCurrentRound(1);
+    setIsRoundComplete(false);
     setStartTime(null);
     textareaRef.current?.focus();
   };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+        }
+      });
+      
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      
+      const chunks: Blob[] = [];
+      
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+      
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        await transcribeAudio(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      setAudioChunks([]);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+      setIsRecording(false);
+      setMediaRecorder(null);
+    }
+  };
+
+  const transcribeAudio = async (audioBlob: Blob) => {
+    try {
+      // Convert blob to base64
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const base64 = btoa(String.fromCharCode(...uint8Array));
+
+      const { data, error } = await supabase.functions.invoke('speech-to-text', {
+        body: { audio: base64 }
+      });
+
+      if (error) {
+        console.error('Transcription error:', error);
+        return;
+      }
+
+      if (data && data.text) {
+        setUserInput(prev => prev + " " + data.text);
+      }
+    } catch (error) {
+      console.error('Error transcribing audio:', error);
+    }
+  };
+
+  const isComplete = currentRound === 3 && isRoundComplete;
 
   return (
     <Card className="p-6 space-y-6 bg-gradient-celestial">
@@ -113,6 +230,9 @@ export const TypingExercise = ({
         <div>
           <h3 className="text-lg font-semibold text-foreground">Type the Verse</h3>
           <p className="text-sm text-muted-foreground">{reference}</p>
+          <Badge variant="outline" className="mt-1">
+            Round {currentRound} of 3
+          </Badge>
         </div>
         <div className="flex items-center space-x-2">
           {showHints && (
@@ -148,20 +268,60 @@ export const TypingExercise = ({
           <Progress value={progress} className="h-2" />
         </div>
 
-        <textarea
-          ref={textareaRef}
-          value={userInput}
-          onChange={(e) => setUserInput(e.target.value)}
-          placeholder="Start typing the verse here..."
-          className="w-full min-h-[120px] p-4 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground resize-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-          disabled={isComplete}
-        />
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <textarea
+              ref={textareaRef}
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              placeholder="Start typing the verse here..."
+              className="flex-1 min-h-[120px] p-4 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground resize-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+              disabled={isComplete}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={isComplete}
+              className={cn(
+                "h-12 w-12 p-0",
+                isRecording && "bg-destructive/10 border-destructive hover:bg-destructive/20"
+              )}
+            >
+              {isRecording ? (
+                <MicOff className="w-4 h-4 text-destructive" />
+              ) : (
+                <Mic className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+          {isRecording && (
+            <p className="text-xs text-muted-foreground">Recording... Click the microphone to stop</p>
+          )}
+        </div>
+
+        {isRoundComplete && currentRound < 3 && (
+          <div className="flex items-center justify-between p-4 bg-success/10 border border-success/20 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="w-5 h-5 text-success" />
+              <span className="font-medium text-success-foreground">
+                Round {currentRound} completed!
+              </span>
+              <Badge variant="secondary" className="ml-2">
+                {Math.round(calculateAccuracy())}% accuracy
+              </Badge>
+            </div>
+            <Button onClick={nextRound} size="sm">
+              Next Round
+            </Button>
+          </div>
+        )}
 
         {isComplete && (
           <div className="flex items-center justify-center space-x-2 p-4 bg-success/10 border border-success/20 rounded-lg">
             <CheckCircle className="w-5 h-5 text-success" />
             <span className="font-medium text-success-foreground">
-              Verse completed! Well done.
+              All rounds completed! Excellent work.
             </span>
             <Badge variant="secondary" className="ml-2">
               {Math.round(calculateAccuracy())}% accuracy
