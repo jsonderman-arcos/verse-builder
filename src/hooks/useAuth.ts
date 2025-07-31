@@ -117,11 +117,15 @@ export const useAuthProvider = (): AuthContextType => {
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
+    const redirectUrl = window.location.origin.includes('localhost') 
+      ? 'http://localhost:8080/login'
+      : 'https://fantastic-paletas-83e43a.netlify.app/login';
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/login`,
+        emailRedirectTo: redirectUrl,
         data: {
           display_name: displayName
         }
@@ -144,8 +148,12 @@ export const useAuthProvider = (): AuthContextType => {
   };
 
   const resetPassword = async (email: string) => {
+    const redirectUrl = window.location.origin.includes('localhost') 
+      ? 'http://localhost:8080/reset-password'
+      : 'https://fantastic-paletas-83e43a.netlify.app/reset-password';
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+      redirectTo: redirectUrl
     });
     return { error };
   };

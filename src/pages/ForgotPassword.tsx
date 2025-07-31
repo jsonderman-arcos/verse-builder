@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,14 +22,19 @@ const ForgotPassword = () => {
     setLoading(true);
     setError('');
 
-    const { error } = await resetPassword(email);
+    const redirectUrl = window.location.origin.includes('localhost') 
+      ? 'http://localhost:8080/reset-password'
+      : 'https://fantastic-paletas-83e43a.netlify.app/reset-password';
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl
+    });
 
     if (error) {
       setError(error.message);
       setLoading(false);
     } else {
       setSent(true);
-      redirectTo: `${window.location.origin}/login`
       toast.success('Password reset email sent!');
     }
   };
