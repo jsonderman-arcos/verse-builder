@@ -1,4 +1,4 @@
-import { Book, Home, Target, TrendingUp } from "lucide-react";
+import { Book, Home, Settings, Target, TrendingUp } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -6,6 +6,7 @@ const navigationItems = [
   { name: "Home", href: "/", icon: Home },
   { name: "Verses", href: "/verses", icon: Book },
   { name: "Practice", href: "/practice", icon: Target },
+  { name: "Settings", href: "/settings", icon: Settings },
   { name: "Progress", href: "/progress", icon: TrendingUp },
 ];
 
