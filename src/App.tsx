@@ -52,6 +52,7 @@ const App = () => (
               <AuthGuard requireAuth={false}>
                 <ResetPassword />
               </AuthGuard>
+            } />
             
             {/* Protected routes */}
             <Route path="/verses" element={
