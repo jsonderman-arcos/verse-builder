@@ -24,17 +24,15 @@ const ResetPassword = () => {
     const initializePasswordReset = async () => {
       console.log('Initializing password reset...');
       console.log('Current URL:', window.location.href);
-      console.log('Hash:', window.location.hash);
-      console.log('Search:', window.location.search);
       
-      // Check for tokens in both URL search params and hash fragments
+      // Extract tokens from URL (both search params and hash)
       let accessToken = searchParams.get('access_token');
       let refreshToken = searchParams.get('refresh_token');
       let type = searchParams.get('type');
       let errorParam = searchParams.get('error');
       let errorDescription = searchParams.get('error_description');
       
-      // If not found in search params, check hash fragments
+      // Check hash fragments if not found in search params
       if (!accessToken && window.location.hash) {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         accessToken = hashParams.get('access_token');
@@ -44,9 +42,15 @@ const ResetPassword = () => {
         errorDescription = hashParams.get('error_description');
       }
       
-      console.log('Extracted tokens:', { accessToken: !!accessToken, refreshToken: !!refreshToken, type, errorParam, errorDescription });
+      console.log('Extracted tokens:', { 
+        hasAccessToken: !!accessToken, 
+        hasRefreshToken: !!refreshToken, 
+        type, 
+        errorParam, 
+        errorDescription 
+      });
       
-      // Check for errors first
+      // Handle errors from URL
       if (errorParam) {
         const errorMessage = errorDescription 
           ? decodeURIComponent(errorDescription.replace(/\+/g, ' '))
@@ -58,31 +62,91 @@ const ResetPassword = () => {
     
       if (accessToken && refreshToken && type === 'recovery') {
         try {
-          // Add a small delay to handle potential clock skew
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Set the session with the tokens from the URL
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          });
-
-          if (error) {
-            console.error('Error setting session:', error);
-            // Handle clock skew errors more gracefully
-            if (error.message.includes('future') || error.message.includes('clock')) {
-              setError('There seems to be a timing issue. Please wait a moment and try refreshing the page, or request a new password reset link.');
-            } else {
-              setError('Invalid or expired reset link. Please request a new password reset.');
+          // First, try to decode the JWT to check if it's valid
+          try {
+            const payload = JSON.parse(atob(accessToken.split('.')[1]));
+            const now = Math.floor(Date.now() / 1000);
+            const clockSkewTolerance = 300; // 5 minutes tolerance
+            
+            console.log('Token payload:', {
+              iat: payload.iat,
+              exp: payload.exp,
+              now: now,
+              clockSkew: payload.iat - now
+            });
+            
+            // Check if token is too far in the future (more than 5 minutes)
+            if (payload.iat > now + clockSkewTolerance) {
+              setError('The reset link appears to have a timing issue. Please wait a few minutes and try again, or request a new password reset link.');
+              setCheckingSession(false);
+              return;
             }
+            
+            // Check if token is expired
+            if (payload.exp < now - clockSkewTolerance) {
+              setError('This reset link has expired. Please request a new password reset.');
+              setCheckingSession(false);
+              return;
+            }
+          } catch (decodeError) {
+            console.error('Error decoding token:', decodeError);
+            setError('Invalid reset link format. Please request a new password reset.');
             setCheckingSession(false);
             return;
           }
+          
+          // Add progressive delays to handle clock skew
+          const delays = [0, 1000, 3000, 5000]; // 0s, 1s, 3s, 5s
+          let sessionSet = false;
+          
+          for (const delay of delays) {
+            if (sessionSet) break;
+            
+            if (delay > 0) {
+              console.log(`Waiting ${delay}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+            
+            try {
+              console.log(`Attempting to set session (attempt with ${delay}ms delay)...`);
+              
+              const { data, error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+              });
 
-          if (data.session) {
-            setValidSession(true);
-          } else {
-            setError('Unable to establish session. Please request a new password reset.');
+              if (error) {
+                console.error(`Session error (${delay}ms delay):`, error);
+                
+                // If this is the last attempt, show error
+                if (delay === delays[delays.length - 1]) {
+                  if (error.message.includes('future') || error.message.includes('clock') || error.message.includes('iat')) {
+                    setError('There is a timing synchronization issue. Please try refreshing the page in a few minutes, or request a new password reset link.');
+                  } else if (error.message.includes('expired')) {
+                    setError('This reset link has expired. Please request a new password reset.');
+                  } else {
+                    setError('Invalid or expired reset link. Please request a new password reset.');
+                  }
+                }
+                continue; // Try next delay
+              }
+
+              if (data.session) {
+                console.log('Session set successfully');
+                setValidSession(true);
+                sessionSet = true;
+              } else {
+                console.log('No session returned');
+                if (delay === delays[delays.length - 1]) {
+                  setError('Unable to establish session. Please request a new password reset.');
+                }
+              }
+            } catch (sessionError) {
+              console.error(`Session setup error (${delay}ms delay):`, sessionError);
+              if (delay === delays[delays.length - 1]) {
+                setError('There was an issue processing your reset link. Please request a new password reset.');
+              }
+            }
           }
         } catch (error) {
           console.error('Error during session setup:', error);
@@ -121,18 +185,24 @@ const ResetPassword = () => {
       return;
     }
 
-    const { error } = await supabase.auth.updateUser({
-      password: password
-    });
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
 
-    if (error) {
-      setError(error.message);
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+      } else {
+        toast.success('Password updated successfully!');
+        // Sign out to ensure clean state, then redirect to login
+        await supabase.auth.signOut();
+        navigate('/login');
+      }
+    } catch (error) {
+      console.error('Password update error:', error);
+      setError('Failed to update password. Please try again.');
       setLoading(false);
-    } else {
-      toast.success('Password updated successfully!');
-      // Sign out to ensure clean state, then redirect to login
-      await supabase.auth.signOut();
-      navigate('/login');
     }
   };
 
@@ -152,7 +222,7 @@ const ResetPassword = () => {
               <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              This may take a moment...
+              Synchronizing with server...
             </p>
           </div>
         </div>
@@ -170,7 +240,7 @@ const ResetPassword = () => {
               <Book className="w-8 h-8 text-primary-foreground" />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-divine bg-clip-text text-transparent">
-              Reset Link Invalid
+              Reset Link Issue
             </h1>
           </div>
 
@@ -179,7 +249,7 @@ const ResetPassword = () => {
               <Alert variant="destructive" className="mb-4">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
-              <div className="text-center">
+              <div className="space-y-2">
                 <Button onClick={() => navigate('/forgot-password')} className="w-full">
                   Request New Reset Link
                 </Button>
