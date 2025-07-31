@@ -24,7 +24,7 @@ const ForgotPassword = () => {
     setError('');
 
     const redirectUrl = window.location.origin.includes('localhost') 
-      ? 'http://localhost:8080/reset-password'
+      ? `${window.location.origin}/reset-password`
       : 'https://fantastic-paletas-83e43a.netlify.app/reset-password';
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {

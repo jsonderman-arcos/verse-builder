@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,28 +16,58 @@ const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [validSession, setValidSession] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Check if we have the required tokens
+    const initializePasswordReset = async () => {
+      // First check if we have tokens in the URL
     const accessToken = searchParams.get('access_token');
     const refreshToken = searchParams.get('refresh_token');
+      const type = searchParams.get('type');
     
-    if (!accessToken || !refreshToken) {
-      setError('Invalid reset link. Please request a new password reset.');
-      return;
-    }
+      if (accessToken && refreshToken && type === 'recovery') {
+        try {
+          // Set the session with the tokens from the URL
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
 
-    // Set the session with the tokens from the URL
-    supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken
-    });
+          if (error) {
+            console.error('Error setting session:', error);
+            setError('Invalid or expired reset link. Please request a new password reset.');
+            return;
+          }
+
+          if (data.session) {
+            setValidSession(true);
+          }
+        } catch (error) {
+          console.error('Error during session setup:', error);
+          setError('An error occurred. Please try again.');
+        }
+      } else if (user) {
+        // User is already authenticated (maybe from a direct navigation)
+        setValidSession(true);
+      } else {
+        setError('Invalid reset link. Please request a new password reset.');
+      }
+    };
+
+    initializePasswordReset();
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validSession) {
+      setError('Invalid session. Please request a new password reset.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -61,9 +92,63 @@ const ResetPassword = () => {
       setLoading(false);
     } else {
       toast.success('Password updated successfully!');
+      // Sign out to ensure clean state, then redirect to login
+      await supabase.auth.signOut();
       navigate('/login');
     }
   };
+
+  // Show loading while checking session validity
+  if (!validSession && !error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-peaceful p-4">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl shadow-elevated mb-4">
+              <Book className="w-8 h-8 text-primary-foreground" />
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-divine bg-clip-text text-transparent">
+              Verifying Reset Link
+            </h1>
+            <div className="mt-4">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if session is invalid
+  if (!validSession && error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-peaceful p-4">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl shadow-elevated mb-4">
+              <Book className="w-8 h-8 text-primary-foreground" />
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-divine bg-clip-text text-transparent">
+              Reset Link Invalid
+            </h1>
+          </div>
+
+          <Card className="bg-card/95 backdrop-blur-sm shadow-elevated border-border/50">
+            <CardContent className="pt-6">
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+              <div className="text-center">
+                <Button onClick={() => navigate('/forgot-password')} className="w-full">
+                  Request New Reset Link
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-peaceful p-4">
