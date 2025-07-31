@@ -12,6 +12,8 @@ import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
@@ -46,6 +48,10 @@ const App = () => (
                 <ForgotPassword />
               </AuthGuard>
             } />
+            <Route path="/reset-password" element={
+              <AuthGuard requireAuth={false}>
+                <ResetPassword />
+              </AuthGuard>
             
             {/* Protected routes */}
             <Route path="/verses" element={
