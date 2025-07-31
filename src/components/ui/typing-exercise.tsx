@@ -200,10 +200,21 @@ export const TypingExercise = ({
 
   const transcribeAudio = async (audioBlob: Blob) => {
     try {
-      // Convert blob to base64
+      console.log('Starting audio transcription...');
+      
+      // Convert blob to base64 in chunks to handle large files
       const arrayBuffer = await audioBlob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
-      const base64 = btoa(String.fromCharCode(...uint8Array));
+      
+      // Convert to base64 in smaller chunks to prevent memory issues
+      let base64 = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.slice(i, i + chunkSize);
+        base64 += btoa(String.fromCharCode.apply(null, Array.from(chunk)));
+      }
+
+      console.log(`Audio blob size: ${audioBlob.size} bytes`);
 
       const { data, error } = await supabase.functions.invoke('speech-to-text', {
         body: { audio: base64 }
@@ -211,14 +222,23 @@ export const TypingExercise = ({
 
       if (error) {
         console.error('Transcription error:', error);
+        alert('Failed to transcribe audio. Please try again.');
         return;
       }
 
       if (data && data.text) {
-        setUserInput(prev => prev + " " + data.text);
+        console.log('Transcription successful:', data.text);
+        setUserInput(prev => {
+          const newText = prev + (prev ? " " : "") + data.text;
+          return newText;
+        });
+      } else {
+        console.warn('No transcription text received');
+        alert('No speech detected. Please try speaking more clearly.');
       }
     } catch (error) {
       console.error('Error transcribing audio:', error);
+      alert('Failed to process audio. Please check your microphone permissions.');
     }
   };
 
