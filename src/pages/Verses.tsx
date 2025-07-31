@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/ui/navigation";
 import { VerseCard } from "@/components/ui/verse-card";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,29 @@ const dailyExercises = {
 };
 
 const Verses = () => {
+  const navigate = useNavigate();
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  const startPractice = (exerciseType?: string) => {
+    if (exerciseType) {
+      navigate(`/practice?exercise=${exerciseType}`);
+    } else {
+      navigate('/practice');
+    }
+  };
+
+  const getExerciseType = (exerciseName: string) => {
+    const exerciseMap: { [key: string]: string } = {
+      "Typing Practice": "typing",
+      "Fill in the Blanks": "fill-blanks", 
+      "Reference Quiz": "reference",
+      "Reflection": "reflection",
+      "Memory Test": "typing",
+      "Speed Challenge": "typing",
+      "First Letter Hints": "typing"
+    };
+    return exerciseMap[exerciseName] || "typing";
+  };
   return (
     <>
       <Navigation />
@@ -150,10 +173,11 @@ const Verses = () => {
                       {dailyExercises[selectedDay as keyof typeof dailyExercises]?.map((exercise) => (
                         <div
                           key={exercise.id}
-                          className={`flex items-center justify-between p-2 rounded-md text-xs ${
+                          onClick={() => startPractice(getExerciseType(exercise.name))}
+                          className={`flex items-center justify-between p-2 rounded-md text-xs cursor-pointer hover:bg-opacity-80 transition-colors ${
                             exercise.completed
-                              ? 'bg-success/10 text-success-foreground'
-                              : 'bg-muted/50 text-muted-foreground'
+                              ? 'bg-success/10 text-success-foreground hover:bg-success/15'
+                              : 'bg-muted/50 text-muted-foreground hover:bg-muted/60'
                           }`}
                         >
                           <div className="flex items-center space-x-2">
@@ -164,7 +188,7 @@ const Verses = () => {
                             )}
                             <span className="font-medium">{exercise.name}</span>
                           </div>
-                          <Badge variant={exercise.completed ? "default" : "outline"} className="text-xs">
+                          <Badge variant={exercise.completed ? "default" : "outline"} className="text-xs pointer-events-none">
                             {exercise.completed ? "Done" : "Start"}
                           </Badge>
                         </div>
@@ -183,7 +207,7 @@ const Verses = () => {
                 <p className="text-sm text-muted-foreground mb-4">
                   Ready for today's memorization exercise?
                 </p>
-                <Button className="w-full" size="sm">
+                <Button onClick={() => startPractice()} className="w-full" size="sm">
                   Start Practice Session
                 </Button>
               </Card>

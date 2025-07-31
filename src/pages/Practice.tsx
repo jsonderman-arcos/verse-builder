@@ -1,6 +1,10 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Navigation } from "@/components/ui/navigation";
 import { TypingExercise } from "@/components/ui/typing-exercise";
+import { FillBlanksExercise } from "@/components/ui/fill-blanks-exercise";
+import { ReferenceQuiz } from "@/components/ui/reference-quiz";
+import { ReflectionExercise } from "@/components/ui/reflection-exercise";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +52,10 @@ const exerciseTypes = [
 ];
 
 const Practice = () => {
-  const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [selectedExercise, setSelectedExercise] = useState<string | null>(
+    searchParams.get('exercise') || null
+  );
   const [completedExercises, setCompletedExercises] = useState<string[]>([]);
 
   const handleExerciseComplete = (exerciseId: string, timeSpent: number, accuracy: number) => {
@@ -62,7 +69,19 @@ const Practice = () => {
     setSelectedExercise(null);
   };
 
-  if (selectedExercise === "typing") {
+  // Render individual exercises
+  const renderExercise = () => {
+    const exerciseData = exerciseTypes.find(e => e.id === selectedExercise);
+    if (!exerciseData) return null;
+
+    const commonProps = {
+      verse: currentVerse.verse,
+      reference: currentVerse.reference,
+      onComplete: (time: number, accuracy: number) => {
+        handleExerciseComplete(selectedExercise!, time, accuracy);
+      }
+    };
+
     return (
       <>
         <Navigation />
@@ -77,23 +96,23 @@ const Practice = () => {
                 >
                   ← Back to Exercises
                 </Button>
-                <h1 className="text-3xl font-bold text-foreground mb-2">Typing Exercise</h1>
-                <p className="text-muted-foreground">Type the verse exactly as shown</p>
+                <h1 className="text-3xl font-bold text-foreground mb-2">{exerciseData.name}</h1>
+                <p className="text-muted-foreground">{exerciseData.description}</p>
               </div>
 
-              <TypingExercise
-                verse={currentVerse.verse}
-                reference={currentVerse.reference}
-                showHints={true}
-                onComplete={(time, accuracy) => {
-                  handleExerciseComplete("typing", time, accuracy);
-                }}
-              />
+              {selectedExercise === 'typing' && <TypingExercise {...commonProps} showHints={true} />}
+              {selectedExercise === 'fill-blanks' && <FillBlanksExercise {...commonProps} />}
+              {selectedExercise === 'reference' && <ReferenceQuiz {...commonProps} />}
+              {selectedExercise === 'reflection' && <ReflectionExercise {...commonProps} />}
             </div>
           </div>
         </main>
       </>
     );
+  };
+
+  if (selectedExercise) {
+    return renderExercise();
   }
 
   return (
