@@ -15,36 +15,38 @@ const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [validSession, setValidSession] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [validTokens, setValidTokens] = useState(false);
+  const [checkingTokens, setCheckingTokens] = useState(true);
+  const [accessToken, setAccessToken] = useState('');
+  const [refreshToken, setRefreshToken] = useState('');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const initializePasswordReset = async () => {
-      console.log('Initializing password reset...');
+    const extractTokens = () => {
+      console.log('Extracting tokens from URL...');
       console.log('Current URL:', window.location.href);
       
       // Extract tokens from URL (both search params and hash)
-      let accessToken = searchParams.get('access_token');
-      let refreshToken = searchParams.get('refresh_token');
+      let access_token = searchParams.get('access_token');
+      let refresh_token = searchParams.get('refresh_token');
       let type = searchParams.get('type');
       let errorParam = searchParams.get('error');
       let errorDescription = searchParams.get('error_description');
       
       // Check hash fragments if not found in search params
-      if (!accessToken && window.location.hash) {
+      if (!access_token && window.location.hash) {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        accessToken = hashParams.get('access_token');
-        refreshToken = hashParams.get('refresh_token');
+        access_token = hashParams.get('access_token');
+        refresh_token = hashParams.get('refresh_token');
         type = hashParams.get('type');
         errorParam = hashParams.get('error');
         errorDescription = hashParams.get('error_description');
       }
       
       console.log('Extracted tokens:', { 
-        hasAccessToken: !!accessToken, 
-        hasRefreshToken: !!refreshToken, 
+        hasAccessToken: !!access_token, 
+        hasRefreshToken: !!refresh_token, 
         type, 
         errorParam, 
         errorDescription 
@@ -56,116 +58,29 @@ const ResetPassword = () => {
           ? decodeURIComponent(errorDescription.replace(/\+/g, ' '))
           : 'An error occurred during password reset';
         setError(`Reset failed: ${errorMessage}`);
-        setCheckingSession(false);
+        setCheckingTokens(false);
         return;
       }
     
-      if (accessToken && refreshToken && type === 'recovery') {
-        try {
-          // First, try to decode the JWT to check if it's valid
-          try {
-            const payload = JSON.parse(atob(accessToken.split('.')[1]));
-            const now = Math.floor(Date.now() / 1000);
-            const clockSkewTolerance = 300; // 5 minutes tolerance
-            
-            console.log('Token payload:', {
-              iat: payload.iat,
-              exp: payload.exp,
-              now: now,
-              clockSkew: payload.iat - now
-            });
-            
-            // Check if token is too far in the future (more than 5 minutes)
-            if (payload.iat > now + clockSkewTolerance) {
-              setError('The reset link appears to have a timing issue. Please wait a few minutes and try again, or request a new password reset link.');
-              setCheckingSession(false);
-              return;
-            }
-            
-            // Check if token is expired
-            if (payload.exp < now - clockSkewTolerance) {
-              setError('This reset link has expired. Please request a new password reset.');
-              setCheckingSession(false);
-              return;
-            }
-          } catch (decodeError) {
-            console.error('Error decoding token:', decodeError);
-            setError('Invalid reset link format. Please request a new password reset.');
-            setCheckingSession(false);
-            return;
-          }
-          
-          // Add progressive delays to handle clock skew
-          const delays = [0, 1000, 3000, 5000]; // 0s, 1s, 3s, 5s
-          let sessionSet = false;
-          
-          for (const delay of delays) {
-            if (sessionSet) break;
-            
-            if (delay > 0) {
-              console.log(`Waiting ${delay}ms before retry...`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-            }
-            
-            try {
-              console.log(`Attempting to set session (attempt with ${delay}ms delay)...`);
-              
-              const { data, error } = await supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken
-              });
-
-              if (error) {
-                console.error(`Session error (${delay}ms delay):`, error);
-                
-                // If this is the last attempt, show error
-                if (delay === delays[delays.length - 1]) {
-                  if (error.message.includes('future') || error.message.includes('clock') || error.message.includes('iat')) {
-                    setError('There is a timing synchronization issue. Please try refreshing the page in a few minutes, or request a new password reset link.');
-                  } else if (error.message.includes('expired')) {
-                    setError('This reset link has expired. Please request a new password reset.');
-                  } else {
-                    setError('Invalid or expired reset link. Please request a new password reset.');
-                  }
-                }
-                continue; // Try next delay
-              }
-
-              if (data.session) {
-                console.log('Session set successfully');
-                setValidSession(true);
-                sessionSet = true;
-              } else {
-                console.log('No session returned');
-                if (delay === delays[delays.length - 1]) {
-                  setError('Unable to establish session. Please request a new password reset.');
-                }
-              }
-            } catch (sessionError) {
-              console.error(`Session setup error (${delay}ms delay):`, sessionError);
-              if (delay === delays[delays.length - 1]) {
-                setError('There was an issue processing your reset link. Please request a new password reset.');
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error during session setup:', error);
-          setError('There was an issue processing your reset link. Please request a new password reset.');
-        }
+      if (access_token && refresh_token && type === 'recovery') {
+        setAccessToken(access_token);
+        setRefreshToken(refresh_token);
+        setValidTokens(true);
+        console.log('Valid tokens found, ready for password reset');
       } else {
         setError('Invalid reset link. Please request a new password reset.');
       }
       
-      setCheckingSession(false);
+      setCheckingTokens(false);
     };
 
-    initializePasswordReset();
+    extractTokens();
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validSession) {
+    if (!validTokens) {
       setError('Invalid session. Please request a new password reset.');
       return;
     }
@@ -186,28 +101,42 @@ const ResetPassword = () => {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password
+      console.log('Calling server-side password reset function...');
+      
+      // Call our Edge Function to handle the password reset server-side
+      const { data, error } = await supabase.functions.invoke('reset-password', {
+        body: {
+          access_token: accessToken,
+          refresh_token: refreshToken,
+          new_password: password
+        }
       });
 
       if (error) {
-        setError(error.message);
-        setLoading(false);
-      } else {
-        toast.success('Password updated successfully!');
-        // Sign out to ensure clean state, then redirect to login
-        await supabase.auth.signOut();
-        navigate('/login');
+        console.error('Function invocation error:', error);
+        throw new Error(error.message || 'Failed to reset password');
       }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to reset password');
+      }
+
+      console.log('Password reset successful');
+      toast.success('Password updated successfully!');
+      
+      // Clear the URL hash/params and redirect to login
+      window.history.replaceState({}, document.title, window.location.pathname);
+      navigate('/login');
+
     } catch (error) {
-      console.error('Password update error:', error);
-      setError('Failed to update password. Please try again.');
+      console.error('Password reset error:', error);
+      setError(error.message || 'Failed to update password. Please try again.');
       setLoading(false);
     }
   };
 
-  // Show loading while checking session validity
-  if (checkingSession) {
+  // Show loading while checking tokens
+  if (checkingTokens) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-peaceful p-4">
         <div className="w-full max-w-md space-y-6">
@@ -222,7 +151,7 @@ const ResetPassword = () => {
               <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              Synchronizing with server...
+              Validating your reset tokens...
             </p>
           </div>
         </div>
@@ -230,8 +159,8 @@ const ResetPassword = () => {
     );
   }
 
-  // Show error state if session is invalid
-  if (!validSession && error) {
+  // Show error state if tokens are invalid
+  if (!validTokens && error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-peaceful p-4">
         <div className="w-full max-w-md space-y-6">
