@@ -29,7 +29,7 @@ const ForgotPassword = () => {
       setLoading(false);
     } else {
       setSent(true);
-      setLoading(false);
+      redirectTo: `${window.location.origin}/login`
       toast.success('Password reset email sent!');
     }
   };

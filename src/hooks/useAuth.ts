@@ -121,6 +121,7 @@ export const useAuthProvider = (): AuthContextType => {
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/login`,
         data: {
           display_name: displayName
         }
