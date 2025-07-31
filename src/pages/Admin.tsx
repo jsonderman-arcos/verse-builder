@@ -65,21 +65,21 @@ const Admin = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single();
+      // Use the new security definer function to avoid RLS recursion
+      const { data, error } = await supabase.rpc('check_user_is_admin', {
+        user_id: user.id
+      });
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error checking admin status:', error);
+        setIsAdmin(false);
         return;
       }
 
-      setIsAdmin(!!data);
+      setIsAdmin(data === true);
     } catch (error) {
       console.error('Error checking admin status:', error);
+      setIsAdmin(false);
     }
   };
 
