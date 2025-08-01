@@ -1,6 +1,9 @@
 # Project Development Notes
 
 ## Current Session Progress
+1. Adding widget for testing
+2. Test logins
+3. 
 
 ### Issues Resolved
 1. **Password Reset Page 404**: Fixed Netlify routing with proper `_redirects` file
